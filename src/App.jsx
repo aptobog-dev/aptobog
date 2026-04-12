@@ -235,7 +235,7 @@ export default function PrototipoGestorInmuebles() {
   const base = crearInmuebleDesdeLink(url, indice);
 
 try {
-  const respuesta = await fetch("http://localhost:3001/scrap", {
+ const respuesta = await fetch("https://aptobog-backend.onrender.com/scrap", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
