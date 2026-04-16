@@ -12,6 +12,7 @@ export default function PrototipoGestorInmuebles() {
   const [filtroPrecio, setFiltroPrecio] = useState("Todos");
   const [textoLinks, setTextoLinks] = useState("");
   const [mensajeCarga, setMensajeCarga] = useState("");
+  const [cargandoLinks, setCargandoLinks] = useState(false);
 
   const detectarPortal = (url) => {
     const lower = url.toLowerCase();
@@ -44,7 +45,7 @@ export default function PrototipoGestorInmuebles() {
       const segmentos = pathname.split("/").filter(Boolean);
       const ultimo = segmentos[segmentos.length - 1] || "";
       const penultimo = segmentos[segmentos.length - 2] || "";
-      const base = limpiarSlug(penultimo + " " + ultimo);
+      const base = limpiarSlug(`${penultimo} ${ultimo}`);
 
       if (!base) return "Inmueble agregado desde link";
       return capitalizarTitulo(base);
@@ -106,6 +107,7 @@ export default function PrototipoGestorInmuebles() {
 
   const [inmuebles, setInmuebles] = useState(() => {
     const guardado = localStorage.getItem("aptobog_inmuebles");
+
     return guardado
       ? JSON.parse(guardado)
       : [
@@ -119,6 +121,7 @@ export default function PrototipoGestorInmuebles() {
             habitaciones: 3,
             zona: "Bogotá · Cedritos",
             estado: "por_consultar",
+            fechaVisita: "",
             duplicado: false,
             nota: "Buen perfil. Llamar mañana en la mañana.",
             url: "https://www.fincaraiz.com.co/apartamento-cedritos",
@@ -130,168 +133,161 @@ export default function PrototipoGestorInmuebles() {
     localStorage.setItem("aptobog_inmuebles", JSON.stringify(inmuebles));
   }, [inmuebles]);
 
-  const cambiarEstado = (id) => {
-    const estados = [
-      "por_consultar",
-      "contactado",
-      "agendado",
-      "visitado",
-      "favorito",
-      "descartado",
-    ];
-
+  const cambiarEstado = (id, nuevoEstado) => {
     setInmuebles((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-
-        const indexActual = estados.indexOf(item.estado);
-        const siguienteEstado = estados[(indexActual + 1) % estados.length];
-
-        return {
-          ...item,
-          estado: siguienteEstado,
-        };
-      }),
+      prev.map((item) =>
+        item.id === id ? { ...item, estado: nuevoEstado } : item
+      )
     );
   };
 
   const actualizarNota = (id, nuevaNota) => {
     setInmuebles((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, nota: nuevaNota } : item,
-      ),
+        item.id === id ? { ...item, nota: nuevaNota } : item
+      )
     );
   };
 
   const eliminarDescartados = () => {
-  const hayDescartados = inmuebles.some(
-    (item) => item.estado === 'descartado'
-  );
+    const hayDescartados = inmuebles.some(
+      (item) => item.estado === "descartado"
+    );
 
-  if (!hayDescartados) {
-    alert('No hay apartamentos descartados para eliminar.');
-    return;
-  }
+    if (!hayDescartados) {
+      alert("No hay apartamentos descartados para eliminar.");
+      return;
+    }
 
-  const confirmar = window.confirm(
-    '¿Deseás eliminar todos los apartamentos descartados?'
-  );
+    const confirmar = window.confirm(
+      "¿Deseás eliminar todos los apartamentos descartados?"
+    );
 
-  if (!confirmar) return;
+    if (!confirmar) return;
 
-  setInmuebles((prev) =>
-    prev.filter((item) => item.estado !== 'descartado')
-  );
-};
+    setInmuebles((prev) =>
+      prev.filter((item) => item.estado !== "descartado")
+    );
+  };
 
-  const asignarFechaVisita = (id) => {
-    const fecha = prompt("Ingresá la fecha de visita (ej: 2026-04-10 15:00)");
+  const asignarFechaVisita = (id, fecha, hora) => {
+    if (!fecha || !hora) return;
 
-    if (!fecha) return;
+    const fechaHora = `${fecha} ${hora}`;
 
     setInmuebles((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, estado: "agendado", fechaVisita: fecha }
-          : item,
-      ),
+          ? { ...item, estado: "agendado", fechaVisita: fechaHora }
+          : item
+      )
     );
   };
 
   const agregarLinks = async () => {
-    const links = textoLinks
-      .split(/\r?\n/)
-      .map((linea) => linea.trim())
-      .filter(Boolean);
+    if (cargandoLinks) return;
+    setCargandoLinks(true);
 
-    if (!links.length) {
-      setMensajeCarga("Pegá al menos un link para agregarlo.");
-      return;
-    }
-    const urlsValidas = [];
-    const invalidas = [];
+    try {
+      const links = textoLinks
+        .split(/\r?\n/)
+        .map((linea) => linea.trim())
+        .filter(Boolean);
 
-    links.forEach((link) => {
-      try {
-        const url = new URL(link);
-        urlsValidas.push(url.href);
-      } catch {
-        invalidas.push(link);
+      if (!links.length) {
+        setMensajeCarga("Pegá al menos un link para agregarlo.");
+        return;
       }
-    });
 
-    const existentes = new Set(
-      inmuebles.map((item) => item.url?.toLowerCase()).filter(Boolean),
-    );
-    const nuevas = [];
-    let duplicadas = 0;
+      const urlsValidas = [];
+      const invalidas = [];
 
-    for (const [indice, url] of urlsValidas.entries()) {
-  if (existentes.has(url.toLowerCase())) {
-    duplicadas += 1;
-    continue;
-  }
+      links.forEach((link) => {
+        try {
+          const url = new URL(link);
+          urlsValidas.push(url.href);
+        } catch {
+          invalidas.push(link);
+        }
+      });
 
-  const base = crearInmuebleDesdeLink(url, indice);
+      const existentes = new Set(
+        inmuebles.map((item) => item.url?.toLowerCase()).filter(Boolean)
+      );
 
-try {
- const respuesta = await fetch("https://aptobog-backend.onrender.com/scrap", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ url }),
-  });
+      const nuevas = [];
+      let duplicadas = 0;
 
-  const data = await respuesta.json();
+      for (const [indice, url] of urlsValidas.entries()) {
+        if (existentes.has(url.toLowerCase())) {
+          duplicadas += 1;
+          continue;
+        }
 
-  nuevas.push({
-    ...base,
-    titulo: data?.titulo || base.titulo,
-    precioTexto: data?.precioTexto || base.precioTexto,
-    area: data?.area || base.area,
-    habitaciones: data?.habitaciones || base.habitaciones,
-    nota: data?.ok ? "Datos leídos desde el backend." : base.nota,
-  });
-} catch (error) {
-  nuevas.push(base);
-}
-  existentes.add(url.toLowerCase());
-}
+        const base = crearInmuebleDesdeLink(url, indice);
 
-    if (nuevas.length) {
-      setInmuebles((prev) => [...nuevas, ...prev]);
+        try {
+          const respuesta = await fetch(
+            "https://aptobog-backend.onrender.com/scrap",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ url }),
+            }
+          );
+
+          const data = await respuesta.json();
+
+          nuevas.push({
+            ...base,
+            titulo: data?.titulo || base.titulo,
+            precioTexto: data?.precioTexto || base.precioTexto,
+            area: data?.area || base.area,
+            habitaciones: data?.habitaciones || base.habitaciones,
+            nota: data?.ok ? "Datos leídos desde el backend." : base.nota,
+          });
+        } catch (error) {
+          nuevas.push(base);
+        }
+
+        existentes.add(url.toLowerCase());
+      }
+
+      if (nuevas.length) {
+        setInmuebles((prev) => [...nuevas, ...prev]);
+      }
+
+      const partes = [];
+      if (nuevas.length) partes.push(`${nuevas.length} link(s) agregado(s)`);
+      if (duplicadas) partes.push(`${duplicadas} duplicado(s)`);
+      if (invalidas.length) partes.push(`${invalidas.length} inválido(s)`);
+
+      setMensajeCarga(partes.length ? partes.join(" · ") : "No hubo cambios.");
+      setTextoLinks("");
+    } catch (error) {
+      console.error("Error agregando links:", error);
+      setMensajeCarga("Ocurrió un error procesando los links.");
+    } finally {
+      setCargandoLinks(false);
     }
-
-    const partes = [];
-    if (nuevas.length) partes.push(`${nuevas.length} link(s) agregado(s)`);
-    if (duplicadas) partes.push(`${duplicadas} duplicado(s)`);
-    if (invalidas.length) partes.push(`${invalidas.length} inválido(s)`);
-
-    setMensajeCarga(partes.length ? partes.join(" · ") : "No hubo cambios.");
-    setTextoLinks("");
   };
 
   const badgeClass = (estado) => {
     switch (estado) {
       case "por_consultar":
         return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
-
       case "contactado":
         return "bg-green-500/20 text-green-400 border border-green-500/30";
-
       case "agendado":
         return "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30";
-
       case "visitado":
         return "bg-violet-500/20 text-violet-400 border border-violet-500/30";
-
       case "favorito":
         return "bg-amber-500/20 text-amber-400 border border-amber-500/30";
-
       case "descartado":
         return "bg-rose-500/20 text-rose-400 border border-rose-500/30";
-
       default:
         return "bg-zinc-700 text-zinc-300";
     }
@@ -306,6 +302,7 @@ try {
 
       const coincideEstado =
         filtroEstado === "Todos" || item.estado === filtroEstado;
+
       const coincidePortal =
         filtroPortal === "Todos" || item.portal === filtroPortal;
 
@@ -337,11 +334,12 @@ try {
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex">
       <Sidebar
-  resumen={resumen}
-  filtroEstado={filtroEstado}
-  setFiltroEstado={setFiltroEstado}
-  eliminarDescartados={eliminarDescartados}
-/>
+        resumen={resumen}
+        filtroEstado={filtroEstado}
+        setFiltroEstado={setFiltroEstado}
+        eliminarDescartados={eliminarDescartados}
+      />
+
       <main className="flex-1 p-6 space-y-6 bg-gradient-to-b from-zinc-950 via-zinc-950 to-zinc-900">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
@@ -356,14 +354,21 @@ try {
 
           <div className="inline-flex rounded-2xl border border-zinc-800 bg-zinc-900 p-1">
             <button
+              type="button"
               onClick={() => setVista("tarjetas")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${vista === "tarjetas" ? "bg-white text-black" : "text-zinc-400"}`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                vista === "tarjetas" ? "bg-white text-black" : "text-zinc-400"
+              }`}
             >
               Tarjetas
             </button>
+
             <button
+              type="button"
               onClick={() => setVista("lista")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${vista === "lista" ? "bg-white text-black" : "text-zinc-400"}`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                vista === "lista" ? "bg-white text-black" : "text-zinc-400"
+              }`}
             >
               Lista
             </button>
@@ -429,9 +434,7 @@ try {
               </select>
             </div>
 
-            <p className="text-zinc-400 text-sm">
-              {filtrados.length} resultados
-            </p>
+            <p className="text-zinc-400 text-sm">{filtrados.length} resultados</p>
           </div>
 
           {vista === "tarjetas" ? (
@@ -460,6 +463,7 @@ try {
                     <th className="text-left px-4 py-3">Acciones</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {filtrados.map((item) => (
                     <tr
@@ -474,7 +478,9 @@ try {
                       </td>
                       <td className="px-4 py-4">
                         <span
-                          className={`text-xs px-3 py-1 rounded-full font-medium ${badgeClass(item.estado)}`}
+                          className={`text-xs px-3 py-1 rounded-full font-medium ${badgeClass(
+                            item.estado
+                          )}`}
                         >
                           {item.estado}
                         </span>
@@ -482,6 +488,7 @@ try {
                       <td className="px-4 py-4">
                         <div className="flex gap-2">
                           <button
+                            type="button"
                             onClick={() => window.open(item.url, "_blank")}
                             className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700"
                           >
@@ -489,11 +496,13 @@ try {
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => {
                               const nuevaNota = prompt(
                                 "Escribí o editá la nota:",
-                                item.nota || "",
+                                item.nota || ""
                               );
+
                               if (nuevaNota !== null) {
                                 actualizarNota(item.id, nuevaNota);
                               }

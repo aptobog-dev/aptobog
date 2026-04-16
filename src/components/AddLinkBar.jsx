@@ -15,16 +15,19 @@ export default function AddLinkBar({
           value={textoLinks}
           onChange={(e) => setTextoLinks(e.target.value)}
           className="flex-1 px-5 py-4 rounded-2xl bg-zinc-900/80 border border-zinc-700 outline-none min-h-[92px] resize-none"
-          placeholder={'Pegá uno o varios links, uno por línea...\n\nhttps://www.fincaraiz.com.co/...\nhttps://www.metrocuadrado.com/...'}
+          placeholder={
+            "Pegá uno o varios links, uno por línea...\n\nhttps://www.fincaraiz.com.co/...\nhttps://www.metrocuadrado.com/..."
+          }
         />
+
         <div className="flex xl:flex-col gap-3 xl:w-48">
           <button
+            type="button"
             onClick={agregarLinks}
             className="flex-1 px-4 py-2 rounded-xl bg-orange-500 text-black text-sm font-semibold hover:brightness-110 transition"
           >
             + Analizar
           </button>
-          
         </div>
       </div>
 
@@ -35,14 +38,16 @@ export default function AddLinkBar({
       )}
 
       <div className="flex flex-wrap gap-2 mt-4 text-xs">
-        {['Fincaraíz', 'Metrocuadrado', 'Ciencuadras', 'OLX', 'Cualquier URL'].map((item) => (
-          <span
-            key={item}
-            className="px-3 py-1 rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300"
-          >
-            {item}
-          </span>
-        ))}
+        {["Fincaraíz", "Metrocuadrado", "Ciencuadras", "OLX", "Cualquier URL"].map(
+          (item) => (
+            <span
+              key={item}
+              className="px-3 py-1 rounded-full border border-zinc-700 bg-zinc-900 text-zinc-300"
+            >
+              {item}
+            </span>
+          )
+        )}
       </div>
     </section>
   );
